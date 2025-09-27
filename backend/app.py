@@ -913,5 +913,114 @@ def interview_report():
         ]
     })
 
+
+
+@app.route("/api/recommendations", methods=["GET"])
+def get_recommendations():
+    if "user_id" not in session:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    user_id = session["user_id"]
+    user_name = get_user_name()
+    if not user_name:
+        return jsonify({"error": "User profile not found"}), 404
+
+    try:
+        # --- Step 1: Get job data ---
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+        cur.execute("""
+            SELECT job_role, company_name, company_type, embedding, knowledge_cleaned, skills_cleaned 
+            FROM job_data_cleaned
+        """)
+        job_data = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        job_embeddings, job_info = [], []
+        for job in job_data:
+            embedding = job.get("embedding")
+            if embedding:
+                try:
+                    embedding = json.loads(embedding)
+                    job_embeddings.append(embedding)
+                    job_info.append(job)
+                except:
+                    continue
+
+        if not job_embeddings:
+            return jsonify({"error": "No job embeddings found"}), 500
+
+        # --- Step 2: Prepare FAISS index ---
+        job_embeddings = np.array(job_embeddings).astype("float32")
+        faiss_index = faiss.IndexFlatL2(job_embeddings.shape[1])
+        faiss_index.add(job_embeddings)
+
+        # --- Step 3: Get user profile ---
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=DictCursor)
+
+        # Resume (latest)
+        cur.execute(
+            "SELECT skills, insights FROM resumes WHERE user_id = %s ORDER BY uploaded_at DESC LIMIT 1",
+            (user_id,)
+        )
+        resume = cur.fetchone()
+
+        # Soft skills (by username from resumes table)
+        cur.execute(
+            "SELECT analysis FROM soft_skill_analysis WHERE username = %s",
+            (user_name,)
+        )
+        soft_skills = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        if not resume:
+            return jsonify({"error": "No resume found"}), 404
+
+        user_profile = f"""
+        Name: {user_name}
+        Resume Skills: {resume['skills'] or ''}
+        Resume Insights: {resume['insights'] or ''}
+        Behavioral Analysis: {" ".join([row['analysis'] for row in soft_skills]) if soft_skills else ""}
+        """
+
+        # --- Step 4: Embed and search ---
+        user_embedding = sentence_model.encode([user_profile])[0].astype("float32")
+        D, I = faiss_index.search(np.array([user_embedding]), k=5)
+
+        recommendations = []
+        for idx, distance in zip(I[0], D[0]):
+            job = job_info[idx]
+
+    # Convert L2 distance to similarity percentage
+    # You can adjust max_distance according to your embeddings
+            max_distance = 10.0  # estimated max L2 distance
+            similarity_percentage = max(0, 100 - (float(distance) / max_distance * 100))
+
+            recommendations.append({
+                "job_role": job["job_role"],
+                "company_name": job["company_name"],
+                "company_type": job["company_type"],
+                "knowledge": job.get("knowledge_cleaned", ""),
+                "skills": job.get("skills_cleaned", ""),
+                "similarity_score": round(similarity_percentage, 2)  # rounded to 2 decimals
+            })
+
+
+        return jsonify({"recommendations": recommendations, "user_name": user_name})
+
+    except Exception as e:
+        print("Recommendation error:", e)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+
+
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+
+

@@ -230,6 +230,29 @@ function Home() {
   </div>
 </section>
 
+{/* Job Recommendation Section (Image Right) */}
+<section className="section">
+  <div className="section-inner">
+    <div className="section-text">
+      <h2>Job Recommendations with Behaviour Analysis</h2>
+      <p>
+        Get tailored job recommendations that combine your <strong>resume insights</strong> 
+        with <strong>behavioral analysis</strong>. Our AI ensures that the suggested roles 
+        not only match your skills but also align with your personality and soft skills.
+      </p>
+      <button
+        className="secondary-btn"
+        onClick={() => navigate("/recommendations")}
+      >
+        Get Recommendations
+      </button>
+    </div>
+    <div className="section-img">
+      <img src={homeimg} alt="Job Recommendations" />
+    </div>
+  </div>
+</section>
+
 
 {/* About Us Section */}
 <section ref={aboutRef} className="about-section">

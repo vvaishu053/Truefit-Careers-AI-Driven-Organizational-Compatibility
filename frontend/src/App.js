@@ -16,6 +16,7 @@ import InterviewDashboard from "./components/InterviewDashboard";
 import Interview from "./components/Interview";
 import InterviewResults from "./components/InterviewResults";
 import InterviewReport from "./components/InterviewReport";
+import Recommendations from "./components/Recommendations";
 import axios from "axios";
 
 axios.defaults.withCredentials = true;
@@ -69,6 +70,7 @@ function App() {
           <Route path="/interview" element={<Interview />} />
           <Route path="/interview-results" element={<InterviewResults />} />
           <Route path="/interview-report" element={<InterviewReport />} />
+          <Route path="/recommendations" element={<Recommendations />} />
         </Routes>
       </Layout>
     </Router>
