@@ -988,7 +988,7 @@ def get_recommendations():
 
         # --- Step 4: Embed and search ---
         user_embedding = sentence_model.encode([user_profile])[0].astype("float32")
-        D, I = faiss_index.search(np.array([user_embedding]), k=5)
+        D, I = faiss_index.search(np.array([user_embedding]), k=6)
 
         recommendations = []
         for idx, distance in zip(I[0], D[0]):
